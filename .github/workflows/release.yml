@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Tag matches package.json version
+        run: test "${GITHUB_REF_NAME#v}" = "$(node -p 'require("./package.json").version')"
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck, test and build
+        run: npm run verify
+      - name: Release notes from CHANGELOG.md
+        run: |
+          awk -v v="${GITHUB_REF_NAME#v}" 'index($0, "## [" v "]") == 1 {f = 1; next} /^## \[/ {f = 0} f' \
+            CHANGELOG.md > notes.md
+      # dist/ isn't committed: HACS installs the bundle from the release asset.
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/allegro-buyer-cards.js
+          body_path: notes.md
+          prerelease: ${{ contains(github.ref_name, '-') }}

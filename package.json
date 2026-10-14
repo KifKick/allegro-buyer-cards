@@ -1,0 +1,31 @@
+{
+  "name": "allegro-buyer-cards",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Lovelace card for the Allegro buyer Home Assistant integration",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KifKick/allegro-buyer-cards.git"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify": "npm run typecheck && npm run test && npm run build",
+    "screenshots": "npm run build && node tools/screenshot-harness/build.mjs && python3 tools/screenshot-harness/shoot.py"
+  },
+  "dependencies": {
+    "lean-qr": "^2.7.4",
+    "lit": "^3.3.3"
+  },
+  "devDependencies": {
+    "@mdi/js": "^7.4.47",
+    "@types/node": "^24.19.2",
+    "esbuild": "^0.28.2",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.4"
+  }
+}

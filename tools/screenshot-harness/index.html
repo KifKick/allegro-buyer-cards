@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      addEventListener("error", (e) => console.log("STACK", e.error && e.error.stack));
+      addEventListener("unhandledrejection", (e) => console.log("REJECT", e.reason && e.reason.stack));
+    </script>
+  </head>
+  <body>
+    <!-- The cards bundle first, so the elements are defined when page.js configures them. -->
+    <script type="module" src="./allegro-buyer-cards.js"></script>
+    <script type="module" src="./page.bundle.js"></script>
+  </body>
+</html>

@@ -1,0 +1,41 @@
+name: Bug report
+description: A card shows something wrong, doesn't load, or an action misbehaves.
+labels: [bug]
+body:
+  - type: input
+    id: card-version
+    attributes:
+      label: Cards version
+      description: Shown in the browser console as "ALLEGRO-BUYER-CARDS x.y.z", or in HACS.
+    validations:
+      required: true
+  - type: input
+    id: integration-version
+    attributes:
+      label: Allegro buyer integration version
+    validations:
+      required: true
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Card configuration
+      description: The card's YAML (from the card editor's code view).
+      render: yaml
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Browser console errors
+      description: Open the developer tools (F12) → Console and paste any red errors.
+      render: text
