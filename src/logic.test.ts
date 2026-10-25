@@ -36,6 +36,7 @@ import {
   sortByStage,
   statusDef,
 } from "./orders";
+import { loadPickupSecrets, parsePickupResponse, withPickupSecrets } from "./pickup";
 import { qrImageSrc, qrPath } from "./qr";
 
 const device = (id: string, entryId: string, name: string): DeviceRegistryEntry => ({
@@ -387,6 +388,98 @@ describe("parcel tracking (integration 0.2)", () => {
     expect(order.delivery).toBeUndefined();
     expect(order.defaultPoint).toBeUndefined();
     expect(atOtherPoint(order)).toBe(false);
+  });
+});
+
+describe("pickup codes (integration 0.3)", () => {
+  // 0.3.0 attributes: no pickup_code / receiver_phone_number / qr_code.
+  const strip = ({ pickup_code, receiver_phone_number, qr_code, ...rest }: Record<string, any>) => rest;
+  const attrs = { details: ORDER_ATTRS.details.map((raw) => (typeof raw === "object" ? strip(raw) : raw)) };
+  // Shaped like the service's response (Order.as_pickup).
+  const response = {
+    orders: [
+      {
+        order_id: "g1",
+        seller: "Elektro_Hurt",
+        offers: ["Kabel USB-C 2 m", "Ładowarka 65 W"],
+        waybills: ["6200"],
+        pickup_point_name: "Paczkomat KRA01M",
+        pickup_code: "123456",
+        receiver_phone_number: "600100200",
+        qr_code: "P|600100200|123456",
+      },
+      { seller: "Ksiegarnia", offers: ["Książka"], pickup_code: null, receiver_phone_number: null, qr_code: null },
+      "garbage",
+    ],
+  };
+
+  it("parses the service response, skipping rows without a secret", () => {
+    expect(parsePickupResponse(response)).toEqual([
+      {
+        seller: "Elektro_Hurt",
+        offers: ["Kabel USB-C 2 m", "Ładowarka 65 W"],
+        pointName: "Paczkomat KRA01M",
+        pickupCode: "123456",
+        phone: "600100200",
+        qrCode: "P|600100200|123456",
+      },
+    ]);
+    expect(parsePickupResponse(undefined)).toEqual([]);
+    expect(parsePickupResponse({ orders: "x" })).toEqual([]);
+  });
+
+  it("fills the secrets into the matching order only", () => {
+    const orders = withPickupSecrets(parseOrders(stateObj("sensor.x", "4", attrs)), parsePickupResponse(response));
+    expect(orders[1]).toMatchObject({ pickupCode: "123456", phone: "600100200", qrCode: "P|600100200|123456" });
+    expect(orders.filter((o) => o.pickupCode)).toHaveLength(1);
+  });
+
+  it("gives each of two alike orders its own code, by pickup point", () => {
+    const pickup = strip(ORDER_ATTRS.details[1] as object);
+    const other = { ...pickup, pickup_point_name: "Paczkomat WAW01A" };
+    const orders = parseOrders(stateObj("sensor.x", "2", { details: [pickup, other] }));
+    const row = response.orders[0] as Record<string, any>;
+    const secrets = parsePickupResponse({
+      orders: [{ ...row, pickup_point_name: "Paczkomat WAW01A", pickup_code: "999000" }, row],
+    });
+    expect(withPickupSecrets(orders, secrets).map((o) => o.pickupCode)).toEqual(["123456", "999000"]);
+  });
+
+  it("asks once per sensor state, and only when the service exists", async () => {
+    const calls: unknown[][] = [];
+    const st = stateObj("sensor.x", "4", attrs);
+    const hass = {
+      ...makeHass(),
+      services: { allegro: { get_pickup_code: {} } },
+      callService: async (...args: unknown[]) => {
+        calls.push(args);
+        return { context: {}, response };
+      },
+    } as HomeAssistant;
+    const [first, second] = await Promise.all([
+      loadPickupSecrets(hass, "entry_b", st),
+      loadPickupSecrets(hass, "entry_b", st),
+    ]);
+    expect(first).toHaveLength(1);
+    expect(second).toBe(first);
+    expect(calls).toEqual([["allegro", "get_pickup_code", { config_entry_id: "entry_b" }, undefined, false, true]]);
+    expect(await loadPickupSecrets(makeHass(), "entry_b", stateObj("sensor.x", "4", attrs))).toBeUndefined();
+    expect(await loadPickupSecrets(hass, "entry_b", stateObj("sensor.x", "0", { details: [] }))).toBeUndefined();
+    expect(calls).toHaveLength(1);
+  });
+
+  it("survives a failing call", async () => {
+    const warn = console.warn;
+    console.warn = () => {};
+    const hass = {
+      ...makeHass(),
+      services: { allegro: { get_pickup_code: {} } },
+      callService: async () => {
+        throw new Error("boom");
+      },
+    } as HomeAssistant;
+    expect(await loadPickupSecrets(hass, undefined, stateObj("sensor.x", "4", attrs))).toBeUndefined();
+    console.warn = warn;
   });
 });
 

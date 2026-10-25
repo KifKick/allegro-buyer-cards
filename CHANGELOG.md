@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0] - 2026-10-25
+
+Support for Allegro buyer 0.3.0, which no longer puts the pickup code, receiver phone number and QR code in the order sensors' attributes.
+
+### Changed
+
+- The pickup code, phone number and QR code (the `pickup` section, the pickup banner, the compact layout's code and an order's details) now come from the integration's `allegro.get_pickup_code` service: one call each time the orders sensor changes, shared by the card and its sections. With Allegro buyer older than 0.3.0 they are still read from the attributes.
+
 ## [0.2.0] - 2026-10-14
 
 Support for Allegro buyer 0.2.0. Everything new shows only with that version; with older ones the card looks as before.

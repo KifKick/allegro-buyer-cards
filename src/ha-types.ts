@@ -40,6 +40,8 @@ export interface HomeAssistant {
   locale: { language: string; number_format?: string; time_zone?: string };
   config: { time_zone: string };
   themes: { darkMode: boolean };
+  /** Registered services: domain -> service -> description. */
+  services?: Record<string, Record<string, unknown>>;
   connection?: Connection;
   callService(
     domain: string,

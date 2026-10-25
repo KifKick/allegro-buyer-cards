@@ -1,4 +1,4 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, LitElement, type PropertyValues, type TemplateResult } from "lit";
 import { property, state } from "lit/decorators.js";
 
 import { type Cart, parseCart } from "./cart";
@@ -22,6 +22,7 @@ import { subscribeHidden, updateHidden } from "./hidden";
 import { statusLabel, t } from "./i18n";
 import { parseThreads, type Thread } from "./messages";
 import { groupCode, humanizeStatus, type Order, parseOrders, statusDef } from "./orders";
+import { loadPickupSecrets, type PickupSecret, withPickupSecrets } from "./pickup";
 
 export interface AllegroCardConfig extends LovelaceCardConfig {
   device_id?: string;
@@ -114,6 +115,12 @@ export abstract class AllegroBaseCard<C extends AllegroCardConfig> extends LitEl
 
   protected _hass?: HomeAssistant;
 
+  /** Pickup codes from allegro.get_pickup_code, kept until the next answer so they don't blink. */
+  @state() private _pickup?: { entryId?: string; secrets: PickupSecret[] };
+
+  /** The orders sensor state the last pickup codes were asked for. */
+  private _pickupFor?: HassEntity;
+
   private _unsubscribeHidden?: () => void;
 
   /** Deadlines and "2 hours ago" move with the clock, not only with the data. */
@@ -128,6 +135,7 @@ export abstract class AllegroBaseCard<C extends AllegroCardConfig> extends LitEl
       previous.entities !== hass.entities ||
       previous.devices !== hass.devices ||
       previous.locale !== hass.locale ||
+      previous.services !== hass.services ||
       this._watchedEntityIds().some((id) => previous.states[id] !== hass.states[id])
     ) {
       this.requestUpdate();
@@ -160,6 +168,22 @@ export abstract class AllegroBaseCard<C extends AllegroCardConfig> extends LitEl
     this._unsubscribeHidden = undefined;
     window.clearInterval(this._clock);
     this._clock = undefined;
+  }
+
+  protected override updated(changed: PropertyValues): void {
+    super.updated(changed);
+    this._loadPickup();
+  }
+
+  /** Asks for the pickup codes whenever the orders sensor changes (one call shared by all cards). */
+  private _loadPickup(): void {
+    const stateObj = this._stateObj(ENTITY.inProgress);
+    if (!this._hass || !stateObj || stateObj === this._pickupFor) return;
+    this._pickupFor = stateObj;
+    const entryId = this._entryId;
+    void loadPickupSecrets(this._hass, entryId, stateObj).then((secrets) => {
+      if (secrets && this._pickupFor === stateObj) this._pickup = { entryId, secrets };
+    });
   }
 
   private _subscribeHidden(): void {
@@ -203,9 +227,11 @@ export abstract class AllegroBaseCard<C extends AllegroCardConfig> extends LitEl
     return isUnavailable(this._stateObj(ENTITY.inProgress));
   }
 
-  /** Every order Allegro lists as not yet delivered. */
+  /** Every order Allegro lists as not yet delivered, with its pickup code (0.3.0+). */
   protected get _allOrders(): Order[] {
-    return parseOrders(this._stateObj(ENTITY.inProgress));
+    const orders = parseOrders(this._stateObj(ENTITY.inProgress));
+    const pickup = this._pickup;
+    return pickup && pickup.entryId === this._entryId ? withPickupSecrets(orders, pickup.secrets) : orders;
   }
 
   /** Hidden orders are stored per account: `<config entry id>:<order key>`. */

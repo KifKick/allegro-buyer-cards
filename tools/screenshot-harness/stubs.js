@@ -47,9 +47,6 @@ const ORDER = {
     pickup_point_name: "Paczkomat KRA01M",
     pickup_point_description: "Przy sklepie spożywczym",
     pickup_point_address: "Długa 12, 31-147 Kraków",
-    pickup_code: "482913",
-    receiver_phone_number: "600 100 200",
-    qr_code: "P|600100200|482913",
     is_default_pickup_point: true,
     delivery_status: "READY_TO_PICKUP",
     delivery_description: "Parcel waiting in the locker",
@@ -64,9 +61,6 @@ const ORDER = {
     pickup_point_id: "KRA22B",
     pickup_point_name: "Paczkomat KRA22B",
     pickup_point_address: "Zielona 4, 31-200 Kraków",
-    pickup_code: "907311",
-    receiver_phone_number: "600 100 200",
-    qr_code: "P|600100200|907311",
     is_default_pickup_point: false,
     pickup_deadline: iso(now + 9 * 3_600_000),
   },
@@ -76,9 +70,6 @@ const ORDER = {
     Offers: ["Zestaw doniczek ceramicznych, 3 szt."],
     tracing_url: "https://tracktrace.dpd.com.pl/parcelDetails?p1=0000000000000",
     delivery_name: "Allegro Kurier DPD",
-    pickup_code: null,
-    receiver_phone_number: null,
-    qr_code: null,
   },
   transit: {
     Seller: "KsiegarniaNova",
@@ -93,9 +84,6 @@ const ORDER = {
     delivery_description: "Your parcel is on its way to point",
     delivery_details: "Szacowana dostawa: czw. 16 paź\nOne Box KRA45A\nRynek Główny 1",
     pickup_deadline: null,
-    pickup_code: null,
-    receiver_phone_number: null,
-    qr_code: null,
   },
   problem: {
     Seller: "Meble_Komfort",
@@ -105,9 +93,6 @@ const ORDER = {
     delivery_name: "Przesyłka kurierska",
     delivery_status: "FAILED",
     delivery_description: "Problem z doręczeniem – brak odbiorcy pod adresem",
-    pickup_code: null,
-    receiver_phone_number: null,
-    qr_code: null,
   },
   paid: {
     Seller: "SportMax",
@@ -115,9 +100,6 @@ const ORDER = {
     Offers: ["Bidon stalowy 750 ml, granatowy"],
     tracing_url: null,
     delivery_name: "Allegro Kurier DPD",
-    pickup_code: null,
-    receiver_phone_number: null,
-    qr_code: null,
   },
   payment: {
     Seller: "FotoPlus",
@@ -126,11 +108,19 @@ const ORDER = {
     tracing_url: null,
     delivery_name: "Allegro Paczkomaty InPost",
     pickup_point_name: "Paczkomat KRA88N",
-    pickup_code: null,
-    receiver_phone_number: null,
-    qr_code: null,
   },
 };
+
+// Integration 0.3.0: the secrets come from allegro.get_pickup_code (Order.as_pickup), not the attributes.
+const PICKUP_SECRETS = [
+  { order: "pickup", pickup_code: "482913", receiver_phone_number: "600 100 200", qr_code: "P|600100200|482913" },
+  { order: "other", pickup_code: "907311", receiver_phone_number: "600 100 200", qr_code: "P|600100200|907311" },
+].map(({ order, ...secret }) => ({
+  seller: ORDER[order].Seller,
+  offers: ORDER[order].Offers,
+  pickup_point_name: ORDER[order].pickup_point_name,
+  ...secret,
+}));
 
 const CART = [
   { offer_id: "10000000001", name: "Sznurówki woskowane, czarne, 180 cm, okrągłe 2 mm", quantity: 2, price: 16.64, unit_price: 8.32, seller: "Obuwie_pl", photo: "laces", selected: true },
@@ -268,8 +258,12 @@ export const makeHass = ({
         return () => {};
       },
     },
+    services: { allegro: { get_pickup_code: {} } },
     async callService(domain, service, data) {
       console.log("callService", domain, service, JSON.stringify(data));
+      if (domain === "allegro" && service === "get_pickup_code") {
+        return { context: {}, response: { orders: PICKUP_SECRETS } };
+      }
     },
     async callWS(msg) {
       if (msg.type === "frontend/get_user_data") return { value: [...hiddenKeys] };

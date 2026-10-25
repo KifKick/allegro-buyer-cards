@@ -26,6 +26,7 @@ export const ENTITY = {
 export const SERVICE = {
   markMessageRead: "mark_message_read",
   downloadInvoice: "download_invoice",
+  getPickupCode: "get_pickup_code",
 } as const;
 
 export const ALLEGRO_URL = {

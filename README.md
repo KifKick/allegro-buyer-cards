@@ -28,6 +28,7 @@ A dashboard card for the [Allegro buyer](https://github.com/Przemko92/home-assis
 - Home Assistant 2025.1 or newer.
 - [Allegro buyer](https://github.com/Przemko92/home-assistant-allegro) **0.1.2 or newer**. Pickup point names and addresses need **0.1.3**. With 0.1.2, the card shows the delivery method instead and leaves out directions.
 - Messages, invoices, pickup deadlines, the shipment status, the **Other point** tag and the stale-data banner need **0.2.0**. With older versions those parts just don't show. The **Other point** tag and counter also need a default pickup point set in the integration's options.
+- With **0.3.0** or newer, the pickup code, phone number and QR code are no longer sensor attributes (so they stay out of history); the card asks the integration's `allegro.get_pickup_code` service for them each time the orders change. Older versions still send them in the attributes, and the card reads them there.
 
 ## Installation
 
@@ -45,7 +46,7 @@ HACS registers the dashboard resource for you and updates it with each release.
 ### Manual
 
 1. Download `allegro-buyer-cards.js` from the [latest release](https://github.com/KifKick/allegro-buyer-cards/releases/latest) into your `config/www/` folder.
-2. Go to **Settings → Dashboards → ⋮ → Resources → Add resource**, enter `/local/allegro-buyer-cards.js?v=0.2.0` and choose **JavaScript module**.
+2. Go to **Settings → Dashboards → ⋮ → Resources → Add resource**, enter `/local/allegro-buyer-cards.js?v=0.3.0` and choose **JavaScript module**.
 3. Reload the browser. When you update the file later, bump the `?v=` value so browsers fetch the new version.
 
 ## Usage

@@ -1,5 +1,6 @@
 // Orders as the integration exposes them: the `details` attribute of its
 // order sensors (see Order.as_attributes in the integration's models.py).
+// Since 0.3.0 the pickup code, phone and QR come from a service instead (pickup.ts).
 // Parsed defensively — keys are read in both their current spelling and
 // snake_case, and anything malformed is skipped rather than breaking a card.
 
@@ -39,7 +40,7 @@ export interface Order {
   defaultPoint?: boolean;
 }
 
-const text = (value: unknown): string | undefined => {
+export const text = (value: unknown): string | undefined => {
   if (value === null || value === undefined) return undefined;
   const result = String(value).trim();
   return result || undefined;
